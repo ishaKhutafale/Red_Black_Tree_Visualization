@@ -23,6 +23,7 @@ public class RBTree {
 
     private Node root;
     private Node TNULL;
+    private StringBuilder operationLog;
 
     public RBTree() {
         TNULL = new Node(0);
@@ -30,23 +31,34 @@ public class RBTree {
         TNULL.left = null;
         TNULL.right = null;
         root = TNULL;
+        operationLog = new StringBuilder();
     }
 
-    // Fix insert violations
+    public String getLastOperationLog() {
+        return operationLog.toString();
+    }
+
+    public void clearOperationLog() {
+        operationLog.setLength(0);
+    }
+
     private void fixInsert(Node node) {
         while (node.parent != null && node.parent.color == Node.RED) {
             if (node.parent == node.parent.parent.left) {
                 Node uncle = node.parent.parent.right;
                 if (uncle.color == Node.RED) {
+                    operationLog.append("Recoloring because parent and siblingOfParent are RED.\n");
                     node.parent.color = Node.BLACK;
                     uncle.color = Node.BLACK;
                     node.parent.parent.color = Node.RED;
                     node = node.parent.parent;
                 } else {
                     if (node == node.parent.right) {
+                        operationLog.append("Left rotation needed (Triangle case: Right child of Left parent).\n");
                         node = node.parent;
                         rotateLeft(node);
                     }
+                    operationLog.append("Right rotation needed (Line case: Left child of Left parent).\n");
                     node.parent.color = Node.BLACK;
                     node.parent.parent.color = Node.RED;
                     rotateRight(node.parent.parent);
@@ -54,29 +66,31 @@ public class RBTree {
             } else {
                 Node uncle = node.parent.parent.left;
                 if (uncle.color == Node.RED) {
+                    operationLog.append("Recoloring because parent and siblingOfParent are RED.\n");
                     node.parent.color = Node.BLACK;
                     uncle.color = Node.BLACK;
                     node.parent.parent.color = Node.RED;
                     node = node.parent.parent;
                 } else {
                     if (node == node.parent.left) {
+                        operationLog.append("Right rotation needed (Triangle case: Left child of Right parent).\n");
                         node = node.parent;
                         rotateRight(node);
                     }
+                    operationLog.append("Left rotation needed (Line case: Right child of Right parent).\n");
                     node.parent.color = Node.BLACK;
                     node.parent.parent.color = Node.RED;
                     rotateLeft(node.parent.parent);
                 }
             }
-            if (node == root) {
-                break;
-            }
+            if (node == root) break;
         }
         root.color = Node.BLACK;
     }
 
-    // Rotate left
     private void rotateLeft(Node node) {
+        operationLog.append("Performing left rotation on node ").append(node.key).append(".\n");
+
         Node rightChild = node.right;
         node.right = rightChild.left;
         if (rightChild.left != TNULL) {
@@ -94,8 +108,9 @@ public class RBTree {
         node.parent = rightChild;
     }
 
-    // Rotate right
     private void rotateRight(Node node) {
+        operationLog.append("Performing right rotation on node ").append(node.key).append(".\n");
+
         Node leftChild = node.left;
         node.left = leftChild.right;
         if (leftChild.right != TNULL) {
@@ -112,7 +127,7 @@ public class RBTree {
         leftChild.right = node;
         node.parent = leftChild;
     }
-    
+
     public boolean contains(int key) {
         Node current = root;
         while (current != TNULL) {
@@ -126,11 +141,10 @@ public class RBTree {
         }
         return false;
     }
-    
-    // Insert a key into the tree
+
     public void insert(int key) {
+        clearOperationLog();
         Node node = new Node(key);
-        node.parent = null;
         node.left = TNULL;
         node.right = TNULL;
 
@@ -139,61 +153,44 @@ public class RBTree {
 
         while (x != TNULL) {
             y = x;
-            if (node.key < x.key) {
-                x = x.left;
-            } else {
-                x = x.right;
-            }
+            if (node.key < x.key) x = x.left;
+            else x = x.right;
         }
 
         node.parent = y;
 
-        if (y == null) {
-            root = node;
-        } else if (node.key < y.key) {
-            y.left = node;
-        } else {
-            y.right = node;
-        }
+        if (y == null) root = node;
+        else if (node.key < y.key) y.left = node;
+        else y.right = node;
 
         if (node.parent == null) {
             node.color = Node.BLACK;
             return;
         }
 
-        if (node.parent.parent == null) {
-            return;
-        }
+        if (node.parent.parent == null) return;
 
         fixInsert(node);
     }
 
-    // Transplant subtrees
     private void transplant(Node u, Node v) {
-        if (u.parent == null) {
-            root = v;
-        } else if (u == u.parent.left) {
-            u.parent.left = v;
-        } else {
-            u.parent.right = v;
-        }
+        if (u.parent == null) root = v;
+        else if (u == u.parent.left) u.parent.left = v;
+        else u.parent.right = v;
         v.parent = u.parent;
     }
 
-    // Find minimum of subtree
     private Node minimum(Node node) {
-        while (node.left != TNULL) {
-            node = node.left;
-        }
+        while (node.left != TNULL) node = node.left;
         return node;
     }
 
-    // Fix delete violations
     private void fixDelete(Node x) {
         while (x != root && x.color == Node.BLACK) {
             if (x == x.parent.left) {
                 Node w = x.parent.right;
                 if (w.color == Node.RED) {
+                    operationLog.append("Fixing double black: sibling is red, rotating left.\n");
                     w.color = Node.BLACK;
                     x.parent.color = Node.RED;
                     rotateLeft(x.parent);
@@ -201,16 +198,19 @@ public class RBTree {
                 }
 
                 if (w.left.color == Node.BLACK && w.right.color == Node.BLACK) {
+                    operationLog.append("Fixing double black: sibling's children black, recoloring sibling.\n");
                     w.color = Node.RED;
                     x = x.parent;
                 } else {
                     if (w.right.color == Node.BLACK) {
+                        operationLog.append("Fixing double black: sibling's far child is black, rotating right.\n");
                         w.left.color = Node.BLACK;
                         w.color = Node.RED;
                         rotateRight(w);
                         w = x.parent.right;
                     }
 
+                    operationLog.append("Fixing double black: sibling's far child is red, rotating left.\n");
                     w.color = x.parent.color;
                     x.parent.color = Node.BLACK;
                     w.right.color = Node.BLACK;
@@ -220,6 +220,7 @@ public class RBTree {
             } else {
                 Node w = x.parent.left;
                 if (w.color == Node.RED) {
+                    operationLog.append("Fixing double black: sibling is red, rotating right.\n");
                     w.color = Node.BLACK;
                     x.parent.color = Node.RED;
                     rotateRight(x.parent);
@@ -227,16 +228,19 @@ public class RBTree {
                 }
 
                 if (w.right.color == Node.BLACK && w.left.color == Node.BLACK) {
+                    operationLog.append("Fixing double black: sibling's children black, recoloring sibling.\n");
                     w.color = Node.RED;
                     x = x.parent;
                 } else {
                     if (w.left.color == Node.BLACK) {
+                        operationLog.append("Fixing double black: sibling's far child is black, rotating left.\n");
                         w.right.color = Node.BLACK;
                         w.color = Node.RED;
                         rotateLeft(w);
                         w = x.parent.left;
                     }
 
+                    operationLog.append("Fixing double black: sibling's far child is red, rotating right.\n");
                     w.color = x.parent.color;
                     x.parent.color = Node.BLACK;
                     w.left.color = Node.BLACK;
@@ -248,25 +252,22 @@ public class RBTree {
         x.color = Node.BLACK;
     }
 
-    // Delete a node
     public void delete(int key) {
+        clearOperationLog();
+
         Node node = root;
         Node z = TNULL;
-
         while (node != TNULL) {
             if (node.key == key) {
                 z = node;
                 break;
             }
-            if (key < node.key) {
-                node = node.left;
-            } else {
-                node = node.right;
-            }
+            if (key < node.key) node = node.left;
+            else node = node.right;
         }
 
         if (z == TNULL) {
-            System.out.println("Key not found in the tree.");
+            operationLog.append("Key not found.\n");
             return;
         }
 
@@ -304,15 +305,13 @@ public class RBTree {
         }
     }
 
-    // Draw the tree for visualization
     public void drawTree(Graphics g, int x, int y, int xOffset) {
         drawNode(g, root, x, y, xOffset);
     }
 
     private void drawNode(Graphics g, Node node, int x, int y, int xOffset) {
-        if (node == TNULL) {
-            return;
-        }
+        if (node == TNULL) return;
+
         g.setColor(node.color == Node.RED ? Color.RED : Color.BLACK);
         g.fillOval(x - 15, y - 15, 30, 30);
         g.setColor(Color.WHITE);
